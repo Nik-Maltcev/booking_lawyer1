@@ -1,0 +1,78 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  role          UserRole  @default(USER)
+  bookingLink   String    @unique // Уникальная ссылка для записи к этому юристу
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Слоты доступности юриста
+  availabilities Availability[]
+  // Записи к этому юристу
+  bookings       Booking[]
+
+  @@map("users")
+}
+
+model Availability {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int      // 0-6 (воскресенье-суббота)
+  startTime   String   // HH:mm формат
+  endTime     String   // HH:mm формат
+  duration    Int      // 30 или 60 минут
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("availabilities")
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  lawyerId        String
+  lawyer          User          @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  clientName      String
+  clientEmail     String
+  clientPhone     String?
+
+  bookingDate     DateTime      // Дата и время консультации
+  duration        Int           // 30 или 60 минут
+  type            String        @default("онлайн-консультация")
+
+  status          BookingStatus @default(PENDING)
+  paymentStatus   Boolean       @default(false)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("bookings")
+}
