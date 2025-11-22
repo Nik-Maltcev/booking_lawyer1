@@ -36,5 +36,5 @@ export default async function BookingPage({ params }: BookingPageProps) {
     notFound()
   }
 
-  return <BookingClient lawyer={user} />
+  return <BookingClient lawyer={user as any} />
 }
