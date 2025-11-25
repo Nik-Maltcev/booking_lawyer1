@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 interface AuthFormProps {
   type: 'login' | 'register'
@@ -25,45 +25,37 @@ export default function AuthForm({ type }: AuthFormProps) {
 
     try {
       if (type === 'register') {
-        const response = await fetch('/api/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name,
+            },
           },
-          body: JSON.stringify(formData),
         })
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(errorText)
-        }
+        if (error) throw error
 
-        // После регистрации автоматически логиним
-        const signInResult = await signIn('credentials', {
-          email: formData.email,
-          password: formData.password,
-          redirect: false,
+        // Создаем профиль в БД
+        await fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: data.user?.id, name: formData.name }),
         })
 
-        if (signInResult?.error) {
-          setError('Ошибка входа после регистрации')
-        } else {
-          router.push('/dashboard')
-          router.refresh()
-        }
+        router.push('/dashboard')
+        router.refresh()
       } else {
-        const result = await signIn('credentials', {
+        const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
-          redirect: false,
         })
 
-        if (result?.error) {
-          setError('Неверный email или пароль')
-        } else {
-          router.push('/dashboard')
-          router.refresh()
-        }
+        if (error) throw error
+
+        router.push('/dashboard')
+        router.refresh()
       }
     } catch (error: any) {
       setError(error.message || 'Произошла ошибка')
