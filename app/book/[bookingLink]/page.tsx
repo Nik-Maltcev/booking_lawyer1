@@ -3,15 +3,16 @@ import { notFound } from 'next/navigation'
 import BookingClient from '@/components/BookingClient'
 
 interface BookingPageProps {
-  params: {
+  params: Promise<{
     bookingLink: string
-  }
+  }>
 }
 
 export default async function BookingPage({ params }: BookingPageProps) {
+  const { bookingLink } = await params
   const user = await prisma.user.findUnique({
     where: {
-      bookingLink: params.bookingLink,
+      bookingLink: bookingLink,
     },
     include: {
       availabilities: {
@@ -35,5 +36,5 @@ export default async function BookingPage({ params }: BookingPageProps) {
     notFound()
   }
 
-  return <BookingClient lawyer={user} />
+  return <BookingClient lawyer={user as any} />
 }

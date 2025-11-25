@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { format, addDays, startOfWeek, isSameDay, parse, addMinutes } from 'date-fns'
+import { format, addDays, isSameDay, addMinutes } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
 interface Lawyer {
