@@ -41,7 +41,11 @@ export default function AuthForm({ type }: AuthFormProps) {
         await fetch('/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: data.user?.id, name: formData.name }),
+          body: JSON.stringify({
+            userId: data.user?.id,
+            email: formData.email,
+            name: formData.name,
+          }),
         })
 
         router.push('/dashboard')
