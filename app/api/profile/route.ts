@@ -13,17 +13,17 @@ export async function POST(req: Request) {
       )
     }
 
-    const profile = await prisma.profile.create({
+    const user = await prisma.user.create({
       data: {
         id: userId,
         email: email,
         name,
-        bookingLink: nanoid(10),
       },
     })
 
-    return NextResponse.json(profile)
+    return NextResponse.json(user)
   } catch (error) {
+    console.error('Error creating profile:', error)
     return NextResponse.json({ error: 'Ошибка создания профиля' }, { status: 500 })
   }
 }
