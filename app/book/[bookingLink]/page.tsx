@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import BookingClient from '@/components/BookingClient'
 
@@ -10,31 +10,19 @@ interface BookingPageProps {
 
 export default async function BookingPage({ params }: BookingPageProps) {
   const { bookingLink } = await params
-  const user = await prisma.profile.findUnique({
-    where: {
-      bookingLink: bookingLink,
-    },
-    include: {
-      availabilities: {
-        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-      },
-      bookings: {
-        where: {
-          bookingDate: {
-            gte: new Date(),
-          },
-        },
-        select: {
-          bookingDate: true,
-          duration: true,
-        },
-      },
-    },
-  })
+  
+  const { data: user } = await supabaseAdmin
+    .from('profiles')
+    .select(`
+      *,
+      availabilities (*),
+      bookings (booking_date, duration)
+    `)
+    .eq('booking_link', bookingLink)
+    .gte('bookings.booking_date', new Date().toISOString())
+    .single()
 
-  if (!user) {
-    notFound()
-  }
+  if (!user) notFound()
 
   return <BookingClient lawyer={user as any} />
 }

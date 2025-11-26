@@ -1,84 +1,47 @@
 import { redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import AdminClient from '@/components/AdminClient'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/db'
 
 export default async function AdminPage() {
-  const cookieStore = await cookies()
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
+  const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
 
-  if (!authUser) {
-    redirect('/login')
-  }
+  if (!authUser) redirect('/login')
 
-  const currentUser = await prisma.profile.findUnique({
-    where: { id: authUser.id },
-  })
+  const { data: currentUser } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('id', authUser.id)
+    .single()
 
-  if (!currentUser || currentUser.role !== 'ADMIN') {
-    redirect('/dashboard')
-  }
+  if (!currentUser || currentUser.role !== 'ADMIN') redirect('/dashboard')
 
-  const users = await prisma.profile.findMany({
-    where: {
-      role: 'USER',
-    },
-    include: {
-      _count: {
-        select: {
-          bookings: true,
-          availabilities: true,
-        },
-      },
-      bookings: {
-        select: {
-          id: true,
-          clientName: true,
-          clientEmail: true,
-          bookingDate: true,
-          status: true,
-          paymentStatus: true,
-        },
-        orderBy: {
-          bookingDate: 'desc',
-        },
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  })
+  const { data: users } = await supabaseAdmin
+    .from('profiles')
+    .select(`
+      *,
+      bookings (*),
+      availabilities (*)
+    `)
+    .eq('role', 'USER')
+    .order('created_at', { ascending: false })
 
-  const totalBookings = await prisma.booking.count()
-  const paidBookings = await prisma.booking.count({
-    where: { paymentStatus: true },
-  })
+  const { count: totalBookings } = await supabaseAdmin
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+
+  const { count: paidBookings } = await supabaseAdmin
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('payment_status', true)
 
   const stats = {
-    totalUsers: users.length,
-    totalBookings,
-    paidBookings,
-    pendingPayments: totalBookings - paidBookings,
+    totalUsers: users?.length || 0,
+    totalBookings: totalBookings || 0,
+    paidBookings: paidBookings || 0,
+    pendingPayments: (totalBookings || 0) - (paidBookings || 0),
   }
 
-  return <AdminClient users={users} stats={stats} />
+  return <AdminClient users={users || []} stats={stats} />
 }

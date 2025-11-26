@@ -1,41 +1,21 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
-
-async function getUser() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
-}
+import { createClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/db'
 
 export async function GET() {
   try {
-    const user = await getUser()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
-    const bookings = await prisma.booking.findMany({
-      where: { lawyerId: user.id },
-      orderBy: { bookingDate: 'asc' },
-    })
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .select('*')
+      .eq('lawyer_id', user.id)
+      .order('booking_date')
 
-    return NextResponse.json(bookings)
+    if (error) throw error
+    return NextResponse.json(data)
   } catch (error) {
     return new NextResponse('Internal Error', { status: 500 })
   }
@@ -49,19 +29,22 @@ export async function POST(request: Request) {
       return new NextResponse('Missing required fields', { status: 400 })
     }
 
-    const booking = await prisma.booking.create({
-      data: {
-        lawyerId,
-        clientName,
-        clientEmail,
-        clientPhone,
-        bookingDate: new Date(bookingDate),
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .insert({
+        lawyer_id: lawyerId,
+        client_name: clientName,
+        client_email: clientEmail,
+        client_phone: clientPhone,
+        booking_date: bookingDate,
         duration,
         type: 'онлайн-консультация',
-      },
-    })
+      })
+      .select()
+      .single()
 
-    return NextResponse.json(booking)
+    if (error) throw error
+    return NextResponse.json(data)
   } catch (error) {
     return new NextResponse('Internal Error', { status: 500 })
   }
