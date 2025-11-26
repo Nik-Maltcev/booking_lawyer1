@@ -21,26 +21,27 @@ enum BookingStatus {
   COMPLETED
 }
 
-// Профиль юриста (связан с Supabase Auth)
-model Profile {
-  id            String    @id // UUID из Supabase Auth
+// Модель пользователя (юристы и админы)
+model User {
+  id            String    @id @default(cuid())
   email         String    @unique
   name          String?
+  password      String?
   role          UserRole  @default(USER)
-  bookingLink   String    @unique // Уникальная ссылка для записи
+  bookingLink   String    @unique @default(cuid())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   availabilities Availability[]
   bookings       Booking[]
 
-  @@map("profiles")
+  @@map("users")
 }
 
 model Availability {
   id          String   @id @default(cuid())
   userId      String
-  user        Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   dayOfWeek   Int      // 0-6 (воскресенье-суббота)
   startTime   String   // HH:mm формат
@@ -56,7 +57,7 @@ model Availability {
 model Booking {
   id              String        @id @default(cuid())
   lawyerId        String
-  lawyer          Profile       @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  lawyer          User          @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
   clientName      String
   clientEmail     String
