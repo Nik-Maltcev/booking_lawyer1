@@ -38,11 +38,17 @@ export default function AuthForm({ type }: AuthFormProps) {
         if (error) throw error
 
         // Создаем профиль в БД
-        await fetch('/api/profile', {
+        const profileRes = await fetch('/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: data.user?.id, name: formData.name, email: formData.email }),
         })
+
+        if (!profileRes.ok) {
+          const err = await profileRes.json()
+          console.error('Profile error:', err)
+          throw new Error(err.error || 'Profile creation failed')
+        }
 
         router.push('/dashboard')
         router.refresh()
