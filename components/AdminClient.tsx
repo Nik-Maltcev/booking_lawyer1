@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { signOut } from 'next-auth/react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import { supabase } from '@/lib/supabase'
 
 interface User {
   id: string
@@ -53,7 +53,10 @@ export default function AdminClient({
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  window.location.href = '/login'
+                }}
                 className="text-sm text-red-600 hover:text-red-700"
               >
                 Выйти

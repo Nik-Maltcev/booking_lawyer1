@@ -1,38 +1,49 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 
-// Получить все записи текущего пользователя
+async function getUser() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
+
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return new NextResponse('Unauthorized', { status: 401 })
-    }
+    const user = await getUser()
+    if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
     const bookings = await prisma.booking.findMany({
-      where: {
-        lawyerId: session.user.id,
-      },
-      orderBy: {
-        bookingDate: 'asc',
-      },
+      where: { lawyerId: user.id },
+      orderBy: { bookingDate: 'asc' },
     })
 
     return NextResponse.json(bookings)
   } catch (error) {
-    console.error('GET BOOKINGS ERROR', error)
     return new NextResponse('Internal Error', { status: 500 })
   }
 }
 
-// Создать новую запись (публичный эндпоинт для клиентов)
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { lawyerId, clientName, clientEmail, clientPhone, bookingDate, duration } = body
+    const { lawyerId, clientName, clientEmail, clientPhone, bookingDate, duration } = await request.json()
 
     if (!lawyerId || !clientName || !clientEmail || !bookingDate || !duration) {
       return new NextResponse('Missing required fields', { status: 400 })
@@ -52,7 +63,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(booking)
   } catch (error) {
-    console.error('CREATE BOOKING ERROR', error)
     return new NextResponse('Internal Error', { status: 500 })
   }
 }
