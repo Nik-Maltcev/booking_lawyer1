@@ -1,12 +1,12 @@
-// This is your Prisma schema file
-
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -21,32 +21,30 @@ enum BookingStatus {
   COMPLETED
 }
 
-// Модель пользователя (юристы и админы)
-model User {
-  id            String    @id @default(cuid())
+model Profile {
+  id            String    @id
   email         String    @unique
   name          String?
-  password      String?
   role          UserRole  @default(USER)
-  bookingLink   String    @unique @default(cuid())
+  bookingLink   String    @unique
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   availabilities Availability[]
   bookings       Booking[]
 
-  @@map("users")
+  @@map("profiles")
 }
 
 model Availability {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  dayOfWeek   Int      // 0-6 (воскресенье-суббота)
-  startTime   String   // HH:mm формат
-  endTime     String   // HH:mm формат
-  duration    Int      // 30 или 60 минут
+  dayOfWeek   Int
+  startTime   String
+  endTime     String
+  duration    Int
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -57,14 +55,14 @@ model Availability {
 model Booking {
   id              String        @id @default(cuid())
   lawyerId        String
-  lawyer          User          @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  lawyer          Profile       @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
   clientName      String
   clientEmail     String
   clientPhone     String?
 
-  bookingDate     DateTime      // Дата и время консультации
-  duration        Int           // 30 или 60 минут
+  bookingDate     DateTime
+  duration        Int
   type            String        @default("онлайн-консультация")
 
   status          BookingStatus @default(PENDING)
