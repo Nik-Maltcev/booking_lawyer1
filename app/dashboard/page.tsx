@@ -9,7 +9,7 @@ export default async function DashboardPage() {
 
   if (!authUser) redirect('/login')
 
-  const { data: user } = await supabaseAdmin
+  const { data: user, error } = await supabaseAdmin
     .from('profiles')
     .select(`
       *,
@@ -19,7 +19,11 @@ export default async function DashboardPage() {
     .eq('id', authUser.id)
     .single()
 
-  if (!user) redirect('/login')
+  if (error || !user) {
+    console.error('Dashboard user fetch error:', error)
+    redirect('/login')
+  }
+  
   if (user.role === 'ADMIN') redirect('/admin')
 
   return <DashboardClient user={user as any} />
