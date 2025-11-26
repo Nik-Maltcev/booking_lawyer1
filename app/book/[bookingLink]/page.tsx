@@ -10,7 +10,7 @@ interface BookingPageProps {
 
 export default async function BookingPage({ params }: BookingPageProps) {
   const { bookingLink } = await params
-  const user = await prisma.user.findUnique({
+  const user = await prisma.profile.findUnique({
     where: {
       bookingLink: bookingLink,
     },
