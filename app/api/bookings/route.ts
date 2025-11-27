@@ -23,9 +23,19 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { lawyerId, clientName, clientEmail, clientPhone, bookingDate, duration } = await request.json()
+    const {
+      lawyerId,
+      clientName,
+      clientEmail,
+      clientPhone,
+      bookingDate,
+      duration,
+      status,
+      paymentStatus,
+      type,
+    } = await request.json()
 
-    if (!lawyerId || !clientName || !clientEmail || !bookingDate || !duration) {
+    if (!lawyerId || !bookingDate || !duration) {
       return new NextResponse('Missing required fields', { status: 400 })
     }
 
@@ -33,12 +43,14 @@ export async function POST(request: Request) {
       .from('bookings')
       .insert({
         lawyer_id: lawyerId,
-        client_name: clientName,
-        client_email: clientEmail,
+        client_name: clientName || 'Личное время',
+        client_email: clientEmail || 'busy@local',
         client_phone: clientPhone,
         booking_date: bookingDate,
         duration,
-        type: 'онлайн-консультация',
+        status: status || 'PENDING',
+        payment_status: paymentStatus ?? false,
+        type: type || 'онлайн-консультация',
       })
       .select()
       .single()

@@ -26,6 +26,7 @@ interface Booking {
   duration: number
   status: string
   paymentStatus: boolean
+  type?: string
 }
 
 interface User {
@@ -142,6 +143,31 @@ export default function DashboardClient({ user }: { user: User }) {
     return slots.sort((a, b) => a.time.getTime() - b.time.getTime())
   }, [selectedCalendarDate, user.availabilities, normalizedBookings])
 
+  const handleCreateDefaultSchedule = async () => {
+    const defaultDays = [1, 2, 3, 4, 5] // пн-пт
+    const payloads = defaultDays.map((day) => ({
+      dayOfWeek: day,
+      startTime: '09:00',
+      endTime: '17:00',
+      duration: 60,
+    }))
+
+    try {
+      await Promise.all(
+        payloads.map((p) =>
+          fetch('/api/availability', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(p),
+          })
+        )
+      )
+      window.location.reload()
+    } catch (error) {
+      console.error('Error creating default schedule:', error)
+    }
+  }
+
   const handleAddAvailability = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -204,6 +230,37 @@ export default function DashboardClient({ user }: { user: User }) {
     }
   }
 
+  const handleBlockSlot = async (time: Date, duration: number) => {
+    const confirmed = confirm('Отметить этот слот как занятый?')
+    if (!confirmed) return
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lawyerId: user.id,
+          clientName: 'Личное время',
+          clientEmail: user.email,
+          clientPhone: null,
+          bookingDate: time.toISOString(),
+          duration,
+          status: 'BLOCKED',
+          type: 'BLOCKED',
+          paymentStatus: false,
+        }),
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        console.error('Failed to block slot', await response.text())
+      }
+    } catch (error) {
+      console.error('Error blocking slot:', error)
+    }
+  }
+
   const copyBookingLink = () => {
     navigator.clipboard.writeText(bookingUrl)
     alert('Ссылка скопирована!')
@@ -234,6 +291,25 @@ export default function DashboardClient({ user }: { user: User }) {
       </nav>
 
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {user.availabilities.length === 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Создайте рабочий график</p>
+                <p className="text-sm">
+                  По умолчанию можно выставить Пн-Пт 09:00-17:00, потом отредактировать.
+                </p>
+              </div>
+              <button
+                onClick={handleCreateDefaultSchedule}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Создать расписание
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h2 className="text-lg font-medium mb-4">Ссылка для записи</h2>
           <div className="flex items-center space-x-2">
@@ -290,19 +366,21 @@ export default function DashboardClient({ user }: { user: User }) {
                   </div>
                 ) : (
                   calendarSlots.map((slot, idx) => (
-                    <div
+                    <button
                       key={idx}
-                      className={`p-2 border rounded-md text-sm ${
+                      type="button"
+                      onClick={() => slot.available && handleBlockSlot(slot.time, slot.duration)}
+                      className={`p-2 border rounded-md text-sm text-left ${
                         slot.available
-                          ? 'border-green-300 bg-green-50'
-                          : 'border-red-200 bg-red-50 text-red-700'
+                          ? 'border-green-300 bg-green-50 hover:border-blue-500 hover:bg-blue-50'
+                          : 'border-red-200 bg-red-50 text-red-700 cursor-not-allowed'
                       }`}
                     >
                       {format(slot.time, 'HH:mm')} · {slot.duration} мин
                       <div className="text-xs">
-                        {slot.available ? 'Свободно' : 'Занято'}
+                        {slot.available ? 'Свободно (клик — занять)' : 'Занято'}
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -557,6 +635,11 @@ export default function DashboardClient({ user }: { user: User }) {
                       <p className="text-sm text-gray-600">
                         {booking.duration} минут
                       </p>
+                      {booking.type === 'BLOCKED' || booking.status === 'BLOCKED' ? (
+                        <span className="inline-block mt-1 px-2 py-1 text-xs rounded bg-gray-200 text-gray-800">
+                          Личное время
+                        </span>
+                      ) : (
                       <span
                         className={`inline-block mt-1 px-2 py-1 text-xs rounded ${
                           booking.paymentStatus
@@ -566,6 +649,7 @@ export default function DashboardClient({ user }: { user: User }) {
                       >
                         {booking.paymentStatus ? 'Оплачено' : 'Ожидает оплаты'}
                       </span>
+                      )}
                     </div>
                   </div>
                 </div>
