@@ -68,6 +68,12 @@ export default function DashboardClient({ user }: { user: User }) {
     duration: 60,
   })
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | null>(null)
+  const [initialScheduleDays, setInitialScheduleDays] = useState<number[]>([])
+  const [initialScheduleForm, setInitialScheduleForm] = useState({
+    startTime: '09:00',
+    endTime: '17:00',
+    duration: 60,
+  })
 
   const bookingLink = user.bookingLink || user.booking_link || ''
   const bookingUrl = `${window.location.origin}/book/${bookingLink}`
@@ -143,13 +149,21 @@ export default function DashboardClient({ user }: { user: User }) {
     return slots.sort((a, b) => a.time.getTime() - b.time.getTime())
   }, [selectedCalendarDate, user.availabilities, normalizedBookings])
 
-  const handleCreateDefaultSchedule = async () => {
-    const defaultDays = [1, 2, 3, 4, 5] // пн-пт
-    const payloads = defaultDays.map((day) => ({
+  const toggleInitialDay = (day: number) => {
+    setInitialScheduleDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    )
+  }
+
+  const handleCreateInitialSchedule = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!initialScheduleDays.length) return
+
+    const payloads = initialScheduleDays.map((day) => ({
       dayOfWeek: day,
-      startTime: '09:00',
-      endTime: '17:00',
-      duration: 60,
+      startTime: initialScheduleForm.startTime,
+      endTime: initialScheduleForm.endTime,
+      duration: initialScheduleForm.duration,
     }))
 
     try {
@@ -164,7 +178,7 @@ export default function DashboardClient({ user }: { user: User }) {
       )
       window.location.reload()
     } catch (error) {
-      console.error('Error creating default schedule:', error)
+      console.error('Error creating schedule:', error)
     }
   }
 
@@ -293,20 +307,75 @@ export default function DashboardClient({ user }: { user: User }) {
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {user.availabilities.length === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Создайте рабочий график</p>
-                <p className="text-sm">
-                  По умолчанию можно выставить Пн-Пт 09:00-17:00, потом отредактировать.
-                </p>
+            <div className="mb-3">
+              <p className="font-medium">Создайте рабочий график</p>
+              <p className="text-sm">
+                Отметьте дни недели и время работы — календарь построится по вашему расписанию.
+              </p>
+            </div>
+            <form onSubmit={handleCreateInitialSchedule} className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                {DAYS_OF_WEEK.map((day, idx) => (
+                  <label key={idx} className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={initialScheduleDays.includes(idx)}
+                      onChange={() => toggleInitialDay(idx)}
+                    />
+                    <span>{day.slice(0, 3)}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Начало</label>
+                  <input
+                    type="time"
+                    required
+                    value={initialScheduleForm.startTime}
+                    onChange={(e) =>
+                      setInitialScheduleForm({ ...initialScheduleForm, startTime: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Конец</label>
+                  <input
+                    type="time"
+                    required
+                    value={initialScheduleForm.endTime}
+                    onChange={(e) =>
+                      setInitialScheduleForm({ ...initialScheduleForm, endTime: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Длительность слота</label>
+                  <select
+                    value={initialScheduleForm.duration}
+                    onChange={(e) =>
+                      setInitialScheduleForm({
+                        ...initialScheduleForm,
+                        duration: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value={30}>30 минут</option>
+                    <option value={60}>60 минут</option>
+                  </select>
+                </div>
               </div>
               <button
-                onClick={handleCreateDefaultSchedule}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                type="submit"
+                disabled={!initialScheduleDays.length}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60"
               >
-                Создать расписание
+                Сохранить график
               </button>
-            </div>
+            </form>
           </div>
         )}
 
