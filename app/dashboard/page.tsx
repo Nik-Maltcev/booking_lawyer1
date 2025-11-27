@@ -26,5 +26,19 @@ export default async function DashboardPage() {
   
   if (user.role === 'ADMIN') redirect('/admin')
 
-  return <DashboardClient user={user as any} />
+  const normalizedUser = {
+    ...user,
+    availabilities: (user.availabilities || []).map((a: any) => ({
+      ...a,
+      dayOfWeek: a.day_of_week ?? a.dayOfWeek,
+      startTime: a.start_time ?? a.startTime,
+      endTime: a.end_time ?? a.endTime,
+    })),
+    bookings: (user.bookings || []).map((b: any) => ({
+      ...b,
+      bookingDate: b.booking_date ?? b.bookingDate,
+    })),
+  }
+
+  return <DashboardClient user={normalizedUser as any} />
 }
