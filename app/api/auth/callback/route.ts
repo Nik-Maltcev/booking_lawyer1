@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const { event, session } = await request.json()
 
   const response = NextResponse.json({ success: true })
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
