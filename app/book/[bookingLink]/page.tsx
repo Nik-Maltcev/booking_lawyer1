@@ -3,13 +3,13 @@ import { notFound } from 'next/navigation'
 import BookingClient from '@/components/BookingClient'
 
 interface BookingPageProps {
-  params: Promise<{
+  params: {
     bookingLink: string
-  }>
+  }
 }
 
 export default async function BookingPage({ params }: BookingPageProps) {
-  const { bookingLink } = await params
+  const { bookingLink } = params
   
   const { data: user } = await supabaseAdmin
     .from('profiles')
@@ -24,5 +24,20 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   if (!user) notFound()
 
-  return <BookingClient lawyer={user as any} />
+  // Supabase возвращает snake_case, приводим к ожидаемому формату клиента
+  const lawyer = {
+    ...user,
+    availabilities: (user.availabilities || []).map((a: any) => ({
+      ...a,
+      dayOfWeek: a.day_of_week ?? a.dayOfWeek,
+      startTime: a.start_time ?? a.startTime,
+      endTime: a.end_time ?? a.endTime,
+    })),
+    bookings: (user.bookings || []).map((b: any) => ({
+      ...b,
+      bookingDate: b.booking_date ?? b.bookingDate,
+    })),
+  }
+
+  return <BookingClient lawyer={lawyer as any} />
 }
