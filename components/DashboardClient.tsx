@@ -10,7 +10,8 @@ interface User {
   id: string
   email: string
   name: string | null
-  bookingLink: string
+  bookingLink?: string
+  booking_link?: string
   availabilities: Availability[]
   bookings: Booking[]
 }
@@ -53,7 +54,8 @@ export default function DashboardClient({ user }: { user: User }) {
     duration: 60,
   })
 
-  const bookingUrl = `${window.location.origin}/book/${user.bookingLink}`
+  const bookingLink = user.bookingLink || user.booking_link || ''
+  const bookingUrl = `${window.location.origin}/book/${bookingLink}`
 
   const handleAddAvailability = async (e: React.FormEvent) => {
     e.preventDefault()
