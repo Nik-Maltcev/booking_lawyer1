@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { format, addDays, addMinutes, isSameDay } from 'date-fns'
 import { ru } from 'date-fns/locale'
@@ -54,6 +55,7 @@ const getStart = (a: Availability) => a.startTime ?? a.start_time ?? '00:00'
 const getEnd = (a: Availability) => a.endTime ?? a.end_time ?? '00:00'
 
 export default function DashboardClient({ user }: { user: User }) {
+  const router = useRouter()
   const [availabilityForm, setAvailabilityForm] = useState({
     dayOfWeek: 1,
     startTime: '09:00',
@@ -181,7 +183,7 @@ export default function DashboardClient({ user }: { user: User }) {
           })
         )
       )
-      window.location.reload()
+      router.refresh()
     } catch (error) {
       console.error('Error creating schedule:', error)
     }
@@ -208,7 +210,7 @@ export default function DashboardClient({ user }: { user: User }) {
       })
 
       if (response.ok) {
-        window.location.reload()
+        router.refresh()
       }
     } catch (error) {
       console.error('Error adding availability by date:', error)
@@ -237,7 +239,7 @@ export default function DashboardClient({ user }: { user: User }) {
       })
 
       if (response.ok) {
-        window.location.reload()
+        router.refresh()
       } else {
         console.error('Failed to block slot', await response.text())
       }
