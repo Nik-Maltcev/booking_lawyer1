@@ -82,15 +82,14 @@ export default function BookingClient({ lawyer }: { lawyer: Lawyer }) {
 
       while (currentTime < endTime) {
         // Проверяем, не занят ли этот слот
+        const slotEnd = addMinutes(currentTime, availability.duration)
+        
         const isBooked = lawyer.bookings.some((booking) => {
           const bookingDate = new Date(booking.bookingDate)
           const bookingEnd = addMinutes(bookingDate, booking.duration)
-          const slotEnd = addMinutes(currentTime, availability.duration)
-
-          return (
-            (currentTime >= bookingDate && currentTime < bookingEnd) ||
-            (slotEnd > bookingDate && slotEnd <= bookingEnd)
-          )
+          
+          // Check for any overlap
+          return currentTime < bookingEnd && bookingDate < slotEnd
         })
 
         // Проверяем, что слот в будущем
@@ -198,7 +197,9 @@ export default function BookingClient({ lawyer }: { lawyer: Lawyer }) {
                         }`}
                       >
                         {format(slot.time, 'HH:mm')}
-                        <div className="text-xs">{slot.duration} мин</div>
+                        <div className="text-xs">
+                          {slot.available ? `${slot.duration} мин` : 'Занято'}
+                        </div>
                       </button>
                     ))}
                   </div>

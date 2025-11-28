@@ -134,17 +134,18 @@ export default function DashboardClient({ user }: { user: User }) {
         const isBooked = normalizedBookings.some((booking) => {
           const bookingStart = new Date(booking.bookingDate)
           const bookingEnd = addMinutes(bookingStart, booking.duration)
-          return (
-            (currentTime >= bookingStart && currentTime < bookingEnd) ||
-            (slotEnd > bookingStart && slotEnd <= bookingEnd)
-          )
+          // Check for any overlap
+          return currentTime < bookingEnd && bookingStart < slotEnd
         })
 
-        slots.push({
-          time: new Date(currentTime),
-          duration: availability.duration,
-          available: !isBooked,
-        })
+        // Only add if not booked (user wants them to disappear)
+        if (!isBooked) {
+          slots.push({
+            time: new Date(currentTime),
+            duration: availability.duration,
+            available: true,
+          })
+        }
 
         currentTime = addMinutes(currentTime, availability.duration)
       }
