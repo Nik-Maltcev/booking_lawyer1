@@ -54,7 +54,6 @@ const getStart = (a: Availability) => a.startTime ?? a.start_time ?? '00:00'
 const getEnd = (a: Availability) => a.endTime ?? a.end_time ?? '00:00'
 
 export default function DashboardClient({ user }: { user: User }) {
-  const [showAvailabilityForm, setShowAvailabilityForm] = useState(false)
   const [availabilityForm, setAvailabilityForm] = useState({
     dayOfWeek: 1,
     startTime: '09:00',
@@ -89,6 +88,11 @@ export default function DashboardClient({ user }: { user: User }) {
       })),
     [user.bookings]
   )
+
+  const todayBookingsCount = useMemo(() => {
+    const today = new Date()
+    return normalizedBookings.filter((b) => isSameDay(b.bookingDate, today)).length
+  }, [normalizedBookings])
 
   const calendarDates = useMemo(() => {
     const dates: Date[] = []
@@ -182,26 +186,6 @@ export default function DashboardClient({ user }: { user: User }) {
     }
   }
 
-  const handleAddAvailability = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    try {
-      const response = await fetch('/api/availability', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(availabilityForm),
-      })
-
-      if (response.ok) {
-        window.location.reload()
-      }
-    } catch (error) {
-      console.error('Error adding availability:', error)
-    }
-  }
-
   const handleAddAvailabilityByDate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!calendarAvailabilityForm.date) return
@@ -227,20 +211,6 @@ export default function DashboardClient({ user }: { user: User }) {
       }
     } catch (error) {
       console.error('Error adding availability by date:', error)
-    }
-  }
-
-  const handleDeleteAvailability = async (id: string) => {
-    try {
-      const response = await fetch(`/api/availability?id=${id}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        window.location.reload()
-      }
-    } catch (error) {
-      console.error('Error deleting availability:', error)
     }
   }
 
@@ -281,452 +251,334 @@ export default function DashboardClient({ user }: { user: User }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">Кабинет юриста</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">{user.email}</span>
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  window.location.href = '/login'
-                }}
-                className="text-sm text-red-600 hover:text-red-700"
-              >
-                Выйти
-              </button>
-            </div>
+    <div className="min-h-screen bg-muted/40">
+      {/* Top Navigation */}
+      <nav className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4 justify-between">
+          <div className="flex items-center gap-2">
+             <h1 className="text-xl font-semibold tracking-tight">Кабинет юриста</h1>
+          </div>
+          <div className="flex items-center gap-4">
+             <span className="text-sm text-muted-foreground hidden md:inline-block">{user.email}</span>
+             <button
+               onClick={async () => {
+                 await supabase.auth.signOut()
+                 window.location.href = '/login'
+               }}
+               className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+             >
+               Выйти
+             </button>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {user.availabilities.length === 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md mb-6">
-            <div className="mb-3">
-              <p className="font-medium">Создайте рабочий график</p>
-              <p className="text-sm">
-                Отметьте дни недели и время работы — календарь построится по вашему расписанию.
+      <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        {/* Stats Row */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border bg-card text-card-foreground shadow">
+            <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+              <h3 className="tracking-tight text-sm font-medium">Записи на сегодня</h3>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                className="h-4 w-4 text-muted-foreground"
+              >
+                <path d="M12 2v20M2 12h20" />
+              </svg>
+            </div>
+            <div className="p-6 pt-0">
+              <div className="text-2xl font-bold">{todayBookingsCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Клиентов на {format(new Date(), 'dd MMMM', { locale: ru })}
               </p>
             </div>
-            <form onSubmit={handleCreateInitialSchedule} className="space-y-3">
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                {DAYS_OF_WEEK.map((day, idx) => (
-                  <label key={idx} className="flex items-center space-x-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={initialScheduleDays.includes(idx)}
-                      onChange={() => toggleInitialDay(idx)}
-                    />
-                    <span>{day.slice(0, 3)}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1">Начало</label>
-                  <input
-                    type="time"
-                    required
-                    value={initialScheduleForm.startTime}
-                    onChange={(e) =>
-                      setInitialScheduleForm({ ...initialScheduleForm, startTime: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1">Конец</label>
-                  <input
-                    type="time"
-                    required
-                    value={initialScheduleForm.endTime}
-                    onChange={(e) =>
-                      setInitialScheduleForm({ ...initialScheduleForm, endTime: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-700 mb-1">Длительность слота</label>
-                  <select
-                    value={initialScheduleForm.duration}
-                    onChange={(e) =>
-                      setInitialScheduleForm({
-                        ...initialScheduleForm,
-                        duration: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value={30}>30 минут</option>
-                    <option value={60}>60 минут</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={!initialScheduleDays.length}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-60"
-              >
-                Сохранить график
-              </button>
-            </form>
           </div>
-        )}
 
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-medium mb-4">Ссылка для записи</h2>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              readOnly
-              value={bookingUrl}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-            />
-            <button
-              onClick={copyBookingLink}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Скопировать
-            </button>
+          <div className="rounded-xl border bg-card text-card-foreground shadow">
+            <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+              <h3 className="tracking-tight text-sm font-medium">Всего записей</h3>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                className="h-4 w-4 text-muted-foreground"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div className="p-6 pt-0">
+              <div className="text-2xl font-bold">{user.bookings.length}</div>
+              <p className="text-xs text-muted-foreground">
+                За все время
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card text-card-foreground shadow sm:col-span-2 lg:col-span-1">
+            <div className="p-6 pb-2">
+               <h3 className="tracking-tight text-sm font-medium mb-2">Ссылка для записи</h3>
+               <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={bookingUrl}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <button
+                  onClick={copyBookingLink}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
+                >
+                  Копия
+                </button>
+               </div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium">Календарь слотов (30 дней)</h2>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-            {calendarDates.map((date) => (
-              <button
-                key={date.toISOString()}
-                onClick={() => setSelectedCalendarDate(date)}
-                className={`p-3 border rounded-md text-sm ${
-                  selectedCalendarDate && isSameDay(selectedCalendarDate, date)
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'border-gray-300 hover:border-blue-500'
-                }`}
-              >
-                <div className="font-medium">
-                  {format(date, 'dd MMM', { locale: ru })}
-                </div>
-                <div className="text-xs">
-                  {format(date, 'EEEE', { locale: ru })}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {selectedCalendarDate && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-gray-700">
-                Слоты на {format(selectedCalendarDate, 'dd MMMM, EEEE', { locale: ru })}
-              </h3>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                {calendarSlots.length === 0 ? (
-                  <div className="col-span-3 text-gray-500 text-sm">
-                    Нет открытых слотов на этот день
+        <div className="grid gap-4 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
+          <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
+             {/* Initial Setup Card - Only shown if no availabilities */}
+             {user.availabilities.length === 0 && (
+                <div className="rounded-xl border bg-card text-card-foreground shadow">
+                  <div className="flex flex-col space-y-1.5 p-6">
+                    <h3 className="font-semibold leading-none tracking-tight">Настройка графика</h3>
+                    <p className="text-sm text-muted-foreground">Создайте ваше начальное расписание.</p>
                   </div>
-                ) : (
-                  calendarSlots.map((slot, idx) => (
+                  <div className="p-6 pt-0">
+                    <form onSubmit={handleCreateInitialSchedule} className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                        {DAYS_OF_WEEK.map((day, idx) => (
+                          <label key={idx} className="flex items-center space-x-2 text-sm p-2 border rounded hover:bg-muted cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                              checked={initialScheduleDays.includes(idx)}
+                              onChange={() => toggleInitialDay(idx)}
+                            />
+                            <span>{day.slice(0, 3)}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <div>
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Начало</label>
+                            <input
+                              type="time"
+                              required
+                              value={initialScheduleForm.startTime}
+                              onChange={(e) => setInitialScheduleForm({ ...initialScheduleForm, startTime: e.target.value })}
+                              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                            />
+                         </div>
+                         <div>
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Конец</label>
+                            <input
+                              type="time"
+                              required
+                              value={initialScheduleForm.endTime}
+                              onChange={(e) => setInitialScheduleForm({ ...initialScheduleForm, endTime: e.target.value })}
+                              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                            />
+                         </div>
+                         <div>
+                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Длительность</label>
+                            <select
+                              value={initialScheduleForm.duration}
+                              onChange={(e) => setInitialScheduleForm({ ...initialScheduleForm, duration: parseInt(e.target.value) })}
+                              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                            >
+                              <option value={30}>30 минут</option>
+                              <option value={60}>60 минут</option>
+                            </select>
+                         </div>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!initialScheduleDays.length}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2 w-full md:w-auto"
+                      >
+                        Сохранить график
+                      </button>
+                    </form>
+                  </div>
+                </div>
+             )}
+
+            {/* Calendar Card */}
+            <div className="rounded-xl border bg-card text-card-foreground shadow">
+              <div className="flex flex-col space-y-1.5 p-6">
+                <h3 className="font-semibold leading-none tracking-tight">Календарь записей</h3>
+                <p className="text-sm text-muted-foreground">Выберите дату для просмотра слотов.</p>
+              </div>
+              <div className="p-6 pt-0">
+                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-6">
+                  {calendarDates.map((date) => (
                     <button
-                      key={idx}
-                      type="button"
-                      onClick={() => slot.available && handleBlockSlot(slot.time, slot.duration)}
-                      className={`p-2 border rounded-md text-sm text-left ${
-                        slot.available
-                          ? 'border-green-300 bg-green-50 hover:border-blue-500 hover:bg-blue-50'
-                          : 'border-red-200 bg-red-50 text-red-700 cursor-not-allowed'
+                      key={date.toISOString()}
+                      onClick={() => setSelectedCalendarDate(date)}
+                      className={`p-2 rounded-md text-sm border transition-colors ${
+                        selectedCalendarDate && isSameDay(selectedCalendarDate, date)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground'
                       }`}
                     >
-                      {format(slot.time, 'HH:mm')} · {slot.duration} мин
-                      <div className="text-xs">
-                        {slot.available ? 'Свободно (клик — занять)' : 'Занято'}
+                      <div className="font-medium">
+                        {format(date, 'dd MMM', { locale: ru })}
+                      </div>
+                      <div className="text-xs opacity-80">
+                        {format(date, 'EEEE', { locale: ru })}
                       </div>
                     </button>
-                  ))
-                )}
+                  ))}
+                 </div>
+
+                 {selectedCalendarDate && (
+                    <div className="space-y-4 animate-accordion-down">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium">
+                          Слоты на {format(selectedCalendarDate, 'dd MMMM', { locale: ru })}
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {calendarSlots.length === 0 ? (
+                          <div className="col-span-full text-muted-foreground text-sm py-8 text-center bg-muted/20 rounded-md border border-dashed">
+                            Нет открытых слотов на этот день
+                          </div>
+                        ) : (
+                          calendarSlots.map((slot, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => slot.available && handleBlockSlot(slot.time, slot.duration)}
+                              disabled={!slot.available}
+                              className={`flex flex-col items-start justify-center p-3 rounded-md border text-sm transition-colors ${
+                                slot.available
+                                  ? 'bg-background hover:bg-accent hover:text-accent-foreground border-input cursor-pointer'
+                                  : 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
+                              }`}
+                            >
+                              <span className="font-medium">{format(slot.time, 'HH:mm')}</span>
+                              <span className="text-xs opacity-70">{slot.duration} мин</span>
+                              <span className={`mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${slot.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                 {slot.available ? 'Свободно' : 'Занято'}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                 )}
               </div>
             </div>
-          )}
-        </div>
 
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-medium mb-4">Добавить слот в календарь</h2>
-          <form
-            onSubmit={handleAddAvailabilityByDate}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Дата
-              </label>
-              <input
-                type="date"
-                required
-                value={calendarAvailabilityForm.date}
-                onChange={(e) =>
-                  setCalendarAvailabilityForm({
-                    ...calendarAvailabilityForm,
-                    date: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
+            {/* Add Specific Date Slot */}
+            <div className="rounded-xl border bg-card text-card-foreground shadow">
+               <div className="flex flex-col space-y-1.5 p-6">
+                 <h3 className="font-semibold leading-none tracking-tight">Добавить слот вручную</h3>
+                 <p className="text-sm text-muted-foreground">Добавьте доступное время на конкретную дату.</p>
+               </div>
+               <div className="p-6 pt-0">
+                  <form onSubmit={handleAddAvailabilityByDate} className="flex flex-col sm:flex-row gap-4 items-end">
+                    <div className="grid gap-2 flex-1 w-full">
+                       <label className="text-sm font-medium">Дата</label>
+                       <input
+                          type="date"
+                          required
+                          value={calendarAvailabilityForm.date}
+                          onChange={(e) => setCalendarAvailabilityForm({ ...calendarAvailabilityForm, date: e.target.value })}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                    </div>
+                    <div className="grid gap-2 w-full sm:w-auto">
+                       <label className="text-sm font-medium">Начало</label>
+                       <input
+                          type="time"
+                          required
+                          value={calendarAvailabilityForm.startTime}
+                          onChange={(e) => setCalendarAvailabilityForm({ ...calendarAvailabilityForm, startTime: e.target.value })}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                    </div>
+                    <div className="grid gap-2 w-full sm:w-auto">
+                       <label className="text-sm font-medium">Конец</label>
+                       <input
+                          type="time"
+                          required
+                          value={calendarAvailabilityForm.endTime}
+                          onChange={(e) => setCalendarAvailabilityForm({ ...calendarAvailabilityForm, endTime: e.target.value })}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                    </div>
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 w-full sm:w-auto"
+                    >
+                      Добавить
+                    </button>
+                  </form>
+               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Начало
-              </label>
-              <input
-                type="time"
-                required
-                value={calendarAvailabilityForm.startTime}
-                onChange={(e) =>
-                  setCalendarAvailabilityForm({
-                    ...calendarAvailabilityForm,
-                    startTime: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Конец
-              </label>
-              <input
-                type="time"
-                required
-                value={calendarAvailabilityForm.endTime}
-                onChange={(e) =>
-                  setCalendarAvailabilityForm({
-                    ...calendarAvailabilityForm,
-                    endTime: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Длительность слота
-              </label>
-              <select
-                value={calendarAvailabilityForm.duration}
-                onChange={(e) =>
-                  setCalendarAvailabilityForm({
-                    ...calendarAvailabilityForm,
-                    duration: parseInt(e.target.value),
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value={30}>30 минут</option>
-                <option value={60}>60 минут</option>
-              </select>
-            </div>
-            <div className="md:col-span-4">
-              <button
-                type="submit"
-                className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Добавить слот
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium">Ваши регулярные слоты</h2>
-            <button
-              onClick={() => setShowAvailabilityForm(!showAvailabilityForm)}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              {showAvailabilityForm ? 'Скрыть' : 'Добавить расписание'}
-            </button>
           </div>
 
-          {showAvailabilityForm && (
-            <form onSubmit={handleAddAvailability} className="mb-6 p-4 bg-gray-50 rounded-md">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    День недели
-                  </label>
-                  <select
-                    value={availabilityForm.dayOfWeek}
-                    onChange={(e) =>
-                      setAvailabilityForm({
-                        ...availabilityForm,
-                        dayOfWeek: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    {DAYS_OF_WEEK.map((day, index) => (
-                      <option key={index} value={index}>
-                        {day}
-                      </option>
-                    ))}
-                  </select>
+          <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
+             {/* Recent Bookings Card */}
+             <div className="rounded-xl border bg-card text-card-foreground shadow">
+                <div className="flex flex-col space-y-1.5 p-6">
+                  <h3 className="font-semibold leading-none tracking-tight">Последние записи</h3>
+                  <p className="text-sm text-muted-foreground">Список последних бронирований.</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Длительность слота
-                  </label>
-                  <select
-                    value={availabilityForm.duration}
-                    onChange={(e) =>
-                      setAvailabilityForm({
-                        ...availabilityForm,
-                        duration: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value={30}>30 минут</option>
-                    <option value={60}>60 минут</option>
-                  </select>
+                <div className="p-6 pt-0">
+                  {user.bookings.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      Бронирований пока нет
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                       {normalizedBookings.slice(0, 5).map((booking) => (
+                         <div key={booking.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                           <div className="space-y-1">
+                              <p className="text-sm font-medium leading-none">{booking.clientName}</p>
+                              <p className="text-xs text-muted-foreground">{booking.clientEmail}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(booking.bookingDate), 'dd MMM, HH:mm', { locale: ru })}
+                              </p>
+                           </div>
+                           <div className="text-right">
+                              {booking.type === 'BLOCKED' || booking.status === 'BLOCKED' ? (
+                                <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                  Личное
+                                </span>
+                              ) : (
+                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent ${
+                                  booking.paymentStatus
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {booking.paymentStatus ? 'Оплачено' : 'Ждет'}
+                                </span>
+                              )}
+                           </div>
+                         </div>
+                       ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Начало
-                  </label>
-                  <input
-                    type="time"
-                    value={availabilityForm.startTime}
-                    onChange={(e) =>
-                      setAvailabilityForm({
-                        ...availabilityForm,
-                        startTime: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Конец
-                  </label>
-                  <input
-                    type="time"
-                    value={availabilityForm.endTime}
-                    onChange={(e) =>
-                      setAvailabilityForm({
-                        ...availabilityForm,
-                        endTime: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Добавить
-              </button>
-            </form>
-          )}
-
-          <div className="space-y-2">
-            {user.availabilities.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">
-                Пока нет открытых слотов по расписанию.
-              </p>
-            ) : (
-              user.availabilities.map((availability) => (
-                <div
-                  key={availability.id}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-md"
-                >
-                  <div>
-                    <span className="font-medium">
-                      {DAYS_OF_WEEK[getDayOfWeek(availability)]}
-                    </span>
-                    {' - '}
-                    <span>
-                      {getStart(availability)} - {getEnd(availability)}
-                    </span>
-                    {' '}
-                    <span className="text-sm text-gray-600">
-                      (длительность {availability.duration} мин)
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteAvailability(availability.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              ))
-            )}
+             </div>
           </div>
         </div>
-
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium mb-4">Последние бронирования</h2>
-          {user.bookings.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">
-              У вас пока нет бронирований.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {normalizedBookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="p-4 border border-gray-200 rounded-md"
-                >
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="font-medium">{booking.clientName}</p>
-                      <p className="text-sm text-gray-600">{booking.clientEmail}</p>
-                      {booking.clientPhone && (
-                        <p className="text-sm text-gray-600">{booking.clientPhone}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">
-                        {format(new Date(booking.bookingDate), 'dd MMMM yyyy, HH:mm', {
-                          locale: ru,
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {booking.duration} минут
-                      </p>
-                      {booking.type === 'BLOCKED' || booking.status === 'BLOCKED' ? (
-                        <span className="inline-block mt-1 px-2 py-1 text-xs rounded bg-gray-200 text-gray-800">
-                          Личное время
-                        </span>
-                      ) : (
-                      <span
-                        className={`inline-block mt-1 px-2 py-1 text-xs rounded ${
-                          booking.paymentStatus
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {booking.paymentStatus ? 'Оплачено' : 'Ожидает оплаты'}
-                      </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      </main>
     </div>
   )
 }
