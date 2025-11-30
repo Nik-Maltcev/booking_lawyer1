@@ -118,7 +118,7 @@ export default function DashboardClient({ user }: { user: User }) {
       (a) => getDayOfWeek(a) === dayOfWeek
     )
 
-    const slots: { time: Date; duration: number; available: boolean }[] = []
+    const slots: { time: Date; duration: number; state: 'available' | 'booked' | 'blocked' }[] = []
 
     dayAvailabilities.forEach((availability) => {
       const [startHour, startMinute] = getStart(availability).split(':').map(Number)
@@ -133,21 +133,21 @@ export default function DashboardClient({ user }: { user: User }) {
       while (currentTime < endTime) {
         const slotEnd = addMinutes(currentTime, availability.duration)
 
-        const isBooked = normalizedBookings.some((booking) => {
+        const overlappingBooking = normalizedBookings.find((booking) => {
           const bookingStart = new Date(booking.bookingDate)
           const bookingEnd = addMinutes(bookingStart, booking.duration)
           // Check for any overlap
           return currentTime < bookingEnd && bookingStart < slotEnd
         })
 
-        // Only add if not booked (user wants them to disappear)
-        if (!isBooked) {
-          slots.push({
-            time: new Date(currentTime),
-            duration: availability.duration,
-            available: true,
-          })
-        }
+        const isBlocked =
+          overlappingBooking?.type === 'BLOCKED' || overlappingBooking?.status === 'BLOCKED'
+
+        slots.push({
+          time: new Date(currentTime),
+          duration: availability.duration,
+          state: overlappingBooking ? (isBlocked ? 'blocked' : 'booked') : 'available',
+        })
 
         currentTime = addMinutes(currentTime, availability.duration)
       }
@@ -460,25 +460,33 @@ export default function DashboardClient({ user }: { user: User }) {
                             Нет открытых слотов на этот день
                           </div>
                         ) : (
-                          calendarSlots.map((slot, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => slot.available && handleBlockSlot(slot.time, slot.duration)}
-                              disabled={!slot.available}
-                              className={`flex flex-col items-start justify-center p-3 rounded-md border text-sm transition-colors ${
-                                slot.available
-                                  ? 'bg-background hover:bg-accent hover:text-accent-foreground border-input cursor-pointer'
-                                  : 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
-                              }`}
-                            >
-                              <span className="font-medium">{format(slot.time, 'HH:mm')}</span>
-                              <span className="text-xs opacity-70">{slot.duration} мин</span>
-                              <span className={`mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${slot.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                 {slot.available ? 'Свободно' : 'Занято'}
-                              </span>
-                            </button>
-                          ))
+                          calendarSlots.map((slot, idx) => {
+                            const isAvailable = slot.state === 'available'
+                            const statusLabel = isAvailable ? 'Свободно' : 'Занято'
+                            const statusBadge =
+                              slot.state === 'available'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            const buttonClasses = isAvailable
+                              ? 'bg-background hover:bg-accent hover:text-accent-foreground border-input cursor-pointer'
+                              : 'bg-red-50 border-red-200 text-red-700 cursor-not-allowed'
+
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => isAvailable && handleBlockSlot(slot.time, slot.duration)}
+                                disabled={!isAvailable}
+                                className={`flex flex-col items-start justify-center p-3 rounded-md border text-sm transition-colors ${buttonClasses}`}
+                              >
+                                <span className="font-medium">{format(slot.time, 'HH:mm')}</span>
+                                <span className="text-xs opacity-70">{slot.duration} мин</span>
+                                <span className={`mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusBadge}`}>
+                                   {statusLabel}
+                                </span>
+                              </button>
+                            )
+                          })
                         )}
                       </div>
                     </div>
