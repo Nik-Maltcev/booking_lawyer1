@@ -1,3 +1,6 @@
+// Client-only Supabase instance
+'use client'
+
 import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -7,7 +10,7 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 let authListenerAttached = false
 
-if (!authListenerAttached) {
+if (typeof window !== 'undefined' && !authListenerAttached) {
   authListenerAttached = true
 
   supabase.auth.onAuthStateChange((event, session) => {

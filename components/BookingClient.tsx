@@ -190,10 +190,10 @@ export default function BookingClient({ lawyer }: { lawyer: Lawyer }) {
                           }
                         }}
                         disabled={!slot.available}
-                        className={`p-2 border rounded-md text-sm ${
+                        className={`p-2 border rounded-md text-sm transition-colors ${
                           slot.available
                             ? 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
-                            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'border-red-200 bg-red-50 text-red-700 cursor-not-allowed'
                         }`}
                       >
                         {format(slot.time, 'HH:mm')}

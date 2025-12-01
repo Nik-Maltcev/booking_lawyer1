@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { format, addDays, addMinutes, isSameDay } from 'date-fns'
@@ -77,7 +77,13 @@ export default function DashboardClient({ user }: { user: User }) {
   })
 
   const bookingLink = user.bookingLink || user.booking_link || ''
-  const bookingUrl = `${window.location.origin}/book/${bookingLink}`
+  const [bookingUrl, setBookingUrl] = useState('')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBookingUrl(`${window.location.origin}/book/${bookingLink}`)
+    }
+  }, [bookingLink])
 
   const normalizedBookings = useMemo(
     () =>

@@ -2,6 +2,9 @@ import { supabaseAdmin } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import BookingClient from '@/components/BookingClient'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface BookingPageProps {
   params: {
     bookingLink: string
