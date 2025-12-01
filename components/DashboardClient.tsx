@@ -232,6 +232,22 @@ export default function DashboardClient({ user }: { user: User }) {
     const confirmed = confirm('Отметить этот слот как занятый?')
     if (!confirmed) return
 
+    // 1. Optimistic Update (Instant Red)
+    const tempId = Math.random().toString(36).substr(2, 9)
+    const optimisticBooking: Booking = {
+      id: tempId,
+      clientName: 'Личное время',
+      clientEmail: user.email,
+      clientPhone: null,
+      bookingDate: time, // Use the EXACT time object from the slot
+      duration: duration,
+      status: 'BLOCKED',
+      type: 'BLOCKED',
+      paymentStatus: false
+    }
+
+    setOptimisticBookings((prev) => [...prev, optimisticBooking])
+
     try {
       const response = await fetch('/api/bookings', {
         method: 'POST',
@@ -250,25 +266,20 @@ export default function DashboardClient({ user }: { user: User }) {
       })
 
       if (response.ok) {
-        const newBookingRaw = await response.json()
-        const newBooking: Booking = {
-          id: newBookingRaw.id,
-          clientName: newBookingRaw.client_name || newBookingRaw.clientName || 'Личное время',
-          clientEmail: newBookingRaw.client_email || newBookingRaw.clientEmail || '',
-          clientPhone: newBookingRaw.client_phone || newBookingRaw.clientPhone || null,
-          bookingDate: new Date(newBookingRaw.booking_date || newBookingRaw.bookingDate),
-          duration: newBookingRaw.duration,
-          status: newBookingRaw.status,
-          paymentStatus: newBookingRaw.payment_status ?? newBookingRaw.paymentStatus ?? false,
-          type: newBookingRaw.type
-        }
-        setOptimisticBookings((prev) => [...prev, newBooking])
-        router.refresh()
+        // Optional: Replace the temp booking with the real one from server if needed,
+        // but for visual "busy" status, the temp one is sufficient until next refresh.
+        console.log('Slot blocked on server')
+        // router.refresh() // Keep disabled to prevent flickering
       } else {
         console.error('Failed to block slot', await response.text())
+        // Rollback on error
+        setOptimisticBookings((prev) => prev.filter(b => b.id !== tempId))
+        alert('Ошибка при сохранении блокировки. Попробуйте обновить страницу.')
       }
     } catch (error) {
       console.error('Error blocking slot:', error)
+      setOptimisticBookings((prev) => prev.filter(b => b.id !== tempId))
+      alert('Ошибка соединения.')
     }
   }
 
