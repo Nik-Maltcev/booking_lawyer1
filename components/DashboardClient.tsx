@@ -76,6 +76,8 @@ export default function DashboardClient({ user }: { user: User }) {
     duration: 60,
   })
 
+  const [optimisticBookings, setOptimisticBookings] = useState<Booking[]>([])
+
   const bookingLink = user.bookingLink || user.booking_link || ''
   const [bookingUrl, setBookingUrl] = useState('')
 
@@ -87,20 +89,22 @@ export default function DashboardClient({ user }: { user: User }) {
   }, [bookingLink])
 
   const normalizedBookings = useMemo(
-    () =>
-      (user.bookings || []).map((b) => ({
+    () => {
+      const baseBookings = (user.bookings || []).map((b) => ({
         ...b,
         bookingDate:
           typeof b.bookingDate === 'string'
             ? new Date(b.bookingDate)
             : b.bookingDate ?? (b.booking_date ? new Date(b.booking_date) : new Date()),
-      })),
-    [user.bookings]
+      }))
+      return [...baseBookings, ...optimisticBookings]
+    },
+    [user.bookings, optimisticBookings]
   )
 
   const todayBookingsCount = useMemo(() => {
     const today = new Date()
-    return normalizedBookings.filter((b) => isSameDay(b.bookingDate, today)).length
+    return normalizedBookings.filter((b) => isSameDay(new Date(b.bookingDate), today)).length
   }, [normalizedBookings])
 
   const calendarDates = useMemo(() => {
@@ -246,6 +250,19 @@ export default function DashboardClient({ user }: { user: User }) {
       })
 
       if (response.ok) {
+        const newBookingRaw = await response.json()
+        const newBooking: Booking = {
+          id: newBookingRaw.id,
+          clientName: newBookingRaw.client_name || newBookingRaw.clientName || 'Личное время',
+          clientEmail: newBookingRaw.client_email || newBookingRaw.clientEmail || '',
+          clientPhone: newBookingRaw.client_phone || newBookingRaw.clientPhone || null,
+          bookingDate: new Date(newBookingRaw.booking_date || newBookingRaw.bookingDate),
+          duration: newBookingRaw.duration,
+          status: newBookingRaw.status,
+          paymentStatus: newBookingRaw.payment_status ?? newBookingRaw.paymentStatus ?? false,
+          type: newBookingRaw.type
+        }
+        setOptimisticBookings((prev) => [...prev, newBooking])
         router.refresh()
       } else {
         console.error('Failed to block slot', await response.text())
