@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, setupSupabaseAuthListener } from '@/lib/supabase'
 import { format, addDays, addMinutes, isSameDay } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
@@ -80,6 +80,7 @@ export default function DashboardClient({ user }: { user: User }) {
   const [bookingUrl, setBookingUrl] = useState('')
 
   useEffect(() => {
+    setupSupabaseAuthListener()
     if (typeof window !== 'undefined') {
       setBookingUrl(`${window.location.origin}/book/${bookingLink}`)
     }

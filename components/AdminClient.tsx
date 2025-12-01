@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
-import { supabase } from '@/lib/supabase'
+import { supabase, setupSupabaseAuthListener } from '@/lib/supabase'
 
 interface User {
   id: string
@@ -42,6 +42,10 @@ export default function AdminClient({
   stats: Stats
 }) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    setupSupabaseAuthListener()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">

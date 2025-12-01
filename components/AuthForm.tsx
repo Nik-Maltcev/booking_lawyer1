@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, setupSupabaseAuthListener } from '@/lib/supabase'
 
 interface AuthFormProps {
   type: 'login' | 'register'
@@ -17,6 +17,10 @@ export default function AuthForm({ type }: AuthFormProps) {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setupSupabaseAuthListener()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

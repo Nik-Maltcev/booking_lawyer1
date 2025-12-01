@@ -10,11 +10,21 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 let authListenerAttached = false
 
-if (typeof window !== 'undefined' && !authListenerAttached) {
+export function setupSupabaseAuthListener() {
+  if (authListenerAttached || typeof window === 'undefined') return
   authListenerAttached = true
 
+  const callbackUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/api/auth/callback`
+      : process.env.NEXT_PUBLIC_SITE_URL
+        ? `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`
+        : null
+
+  if (!callbackUrl) return
+
   supabase.auth.onAuthStateChange((event, session) => {
-    fetch('/api/auth/callback', {
+    fetch(callbackUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
