@@ -27,7 +27,13 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   if (!user) notFound()
 
-  // Supabase возвращает snake_case, приводим к ожидаемому формату клиента
+  const { data: freshBookings } = await supabaseAdmin
+    .from('bookings')
+    .select('booking_date, duration, status, type')
+    .eq('lawyer_id', user.id)
+    .gte('booking_date', new Date().toISOString())
+
+  // Supabase возвращает snake_case, нормализуем для компонент
   const lawyer = {
     ...user,
     availabilities: (user.availabilities || []).map((a: any) => ({
@@ -36,7 +42,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
       startTime: a.start_time ?? a.startTime,
       endTime: a.end_time ?? a.endTime,
     })),
-    bookings: (user.bookings || []).map((b: any) => ({
+    bookings: (freshBookings || user.bookings || []).map((b: any) => ({
       ...b,
       bookingDate: b.booking_date ?? b.bookingDate,
     })),
