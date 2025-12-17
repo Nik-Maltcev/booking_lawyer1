@@ -6,13 +6,13 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 interface BookingPageProps {
-  params: {
+  params: Promise<{
     bookingLink: string
-  }
+  }>
 }
 
 export default async function BookingPage({ params }: BookingPageProps) {
-  const { bookingLink } = params
+  const { bookingLink } = await params
   
   const { data: user } = await supabaseAdmin
     .from('profiles')
